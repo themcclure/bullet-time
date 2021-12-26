@@ -47,19 +47,21 @@ class Bean:
         self.process = self.raw.get('process')
         # TODO: check to make sure this always resolved to true or false
         self.isOrganic = self.raw.get('isOrganic')
-        self.load_roasts()
+        self.roasts = ballistics.find_roast_by(self.beanId, 'beanid').get(self.beanId)
+        # self.load_roasts()  # don't do this, it leads to infinite recursion
 
-    def load_roasts(self):
+    def get_roasts(self) -> List:
         """
-        Loads and attaches all the roasts that use this bean
+        Loads and returns all the roasts that use this bean
         :return: list of Roasts
         """
-        self.roasts = list()
+        results = list()
         roasts = ballistics.find_roast_by(self.beanId, 'beanid').get(self.beanId)
         # if there are no roasts for the bean, skip it
         if roasts:
             for roast_id in roasts:
-                self.roasts.append(ballistics.Roast(roast_id))
+                results.append(ballistics.Roast(roast_id))
+        return results
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.name}, Origin:{self.country}, # Roasts:{len(self.roasts)})"

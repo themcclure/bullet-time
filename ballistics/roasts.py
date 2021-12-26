@@ -26,6 +26,14 @@ class Roast:
     # process: str = ''
     # isOrganic: bool = False
     # isDecaf: bool = False
+    weightGreen: float = 0.0
+    weightRoasted: float = 0.0
+    weightLossPct: float = 0.0
+    roastTimeDrying: float = 0.0
+    roastTimeDevelopment: float = 0.0
+    roastTimeTotal: float = 0.0
+    roastDVPct: float = 0.0
+    bean: Bean = None
     raw: json = None
 
     def __post_init__(self):
@@ -33,8 +41,18 @@ class Roast:
             config.init_env()
         with open(config.roasts_dir / self.roastId) as json_file:
             self.raw = json.load(json_file)
-        self.beanId = self.raw.get('uid')
+        self.beanId = self.raw.get('beanId')
         self.name = self.raw.get('roastName')
+        self.bean = Bean(self.beanId)
+        self.weightGreen = float(self.raw.get('weightGreen'))
+        self.weightRoasted = float(self.raw.get('weightRoasted'))
+        self.weightLossPct = (1.0 - self.weightRoasted / self.weightGreen)*100.0
+        self.roastTimeTotal = float(self.raw.get('totalRoastTime'))
+        rate = int(self.raw.get('sampleRate'))
+        start_at = int(self.raw.get('roastStartIndex'))
+        self.roastTimeDrying = (int(self.raw.get('indexYellowingStart')) - start_at) / rate  # number of samples since start divided by samples/second
+        self.roastTimeDevelopment = self.roastTimeTotal - (int(self.raw.get('indexFirstCrackStart')) / rate)  # from first crack to end of roast
+        self.roastDVPct = self.roastTimeDevelopment / self.roastTimeTotal * 100.0
         # if 'decaf' in self.name.casefold():
         #     self.isDecaf = True
         # self.description = self.raw.get('description')
@@ -61,6 +79,9 @@ def find_roast_by(search_val: str, method: str = 'name') -> Dict:
     :return: dict of matching roasts: {name: [ID]}
     """
     roasts = dict()
+    if not config.initialized:
+        config.init_env()
+
     for file in config.roasts_dir.glob('*'):
         config.logger.debug(f"Found roast: {file}")
         with open(file) as json_file:
