@@ -23,6 +23,19 @@ class BallisticsConfig:
     log_file: str = ''
     log_format: str = ''
     logger: logging.Logger = None
+    # roastLevels: dict = None
+    roastLevels = {
+        0: 'Very Light (Cinnamon)',
+        1: 'Light (City)',
+        2: 'Medium Light (City +)',
+        3: 'Medium (Full City)',
+        4: 'Medium Dark (Full City+)',
+        5: 'Dark (Vienna)',
+        6: 'Dark (French)',
+    }
+    bestDaysStart: int = 3
+    bestDaysEnd: int = 21 + bestDaysStart
+    baseUrl: str = 'https://roastedby.themcclure.com/roasts/'
 
     def init_env(self, name: str = None, force: bool = False) -> None:
         """
@@ -49,6 +62,11 @@ class BallisticsConfig:
         self.src_dir = Path(f"~{os.getenv('BALL_USER', '')}").expanduser() / os.getenv('BALL_HOME', '')
         self.roasts_dir = self.src_dir / 'roasts'
         self.beans_dir = self.src_dir / 'beans'
+
+        # website and label section
+        self.baseUrl = os.getenv('BALL_BASE_URL', '') or self.baseUrl
+        self.bestDaysStart = os.getenv('BALL_MIN_DAYS', '') or self.bestDaysStart
+        self.bestDaysEnd = (os.getenv('BALL_MIN_DAYS', '') or self.bestDaysEnd) + self.bestDaysStart
 
         # general utility section
         if name:

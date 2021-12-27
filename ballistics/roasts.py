@@ -6,10 +6,43 @@ from dataclasses import dataclass
 import json
 from pprint import pprint
 from typing import List, Dict
+from datetime import datetime, timedelta
 
+from .errors import ForeignRoastException
 from .utils import Stopwatch
 from .config import config
 from .beans import Bean, find_bean_by
+
+
+@dataclass
+class RoastCollection:
+    """
+    Collection of Roasts
+    """
+    # roasts: list
+
+    def __post_init__(self):
+        self.roasts = list()
+        if not config.initialized:
+            config.init_env()
+        for file in config.roasts_dir.glob('*'):
+            config.logger.debug(f"Collection loading roast: {file.stem}")
+            try:
+                roast = Roast(file.stem)
+                if roast:
+                    self.roasts.append(roast)
+            except ForeignRoastException as e:
+                config.logger.debug(f"Encountered error creating Roast ({file.stem}, message = {e}")
+
+    def __iter__(self):
+        # FIXME: this isn't working for some reason
+        return iter(self.roasts)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(Collection of {len(self.roasts)} roasts)"
+
+    def __str__(self):
+        return f"{self.__class__.__name__}(Collection of {len(self.roasts)} roasts)"
 
 
 @dataclass
@@ -18,17 +51,21 @@ class Roast:
     Utility class for coffee roasts
     """
     roastId: str = ''
+    batch: int = None
     name: str = ''
-    # description: str = ''
-    # country: str = ''
-    # region: str = ''
-    # farm: str = ''
-    # process: str = ''
-    # isOrganic: bool = False
-    # isDecaf: bool = False
+    description: str = ''
+    roastLevel: str = ''
+    url: str = ''
+    descriptionBean: str = ''
+    country: str = ''
+    region: str = ''
+    process: str = ''
+    isOrganic: bool = False
+    isDecaf: bool = False
     weightGreen: float = 0.0
     weightRoasted: float = 0.0
     weightLossPct: float = 0.0
+    roastDate: datetime = None
     roastTimeDrying: float = 0.0
     roastTimeDevelopment: float = 0.0
     roastTimeTotal: float = 0.0
@@ -42,27 +79,49 @@ class Roast:
         with open(config.roasts_dir / self.roastId) as json_file:
             self.raw = json.load(json_file)
         self.beanId = self.raw.get('beanId')
-        self.name = self.raw.get('roastName')
+        roastname = self.raw.get('roastName')
+
+        ################
+        # Fatal error checking
+        ################
+        # This flag indicates a saved roast or other roast brought into RoasTime that wasn't actually roasted
+        if self.raw.get('isFork') == 1:
+            raise ForeignRoastException(f"Roast {self.roastId} is a recipe or borrowed roast profile")
+        # we have found an abberant roast, and it either needs to be renamed (fixed in the source) or it needs
+        # to be excluded from the data
+        if ' - ' not in roastname:
+            config.logger.debug(f"Found an aberrantly named roast {roastname}")
+            raise ForeignRoastException(f"Roast {self.roastId} aberrantly named as {roastname}")
+        ################
+
+        # split names into batch number and name
+        self.batch, self.name = self.raw.get('roastName').split(' - ')
+        self.url = config.baseUrl + self.batch
+
         self.bean = Bean(self.beanId)
         self.weightGreen = float(self.raw.get('weightGreen'))
         self.weightRoasted = float(self.raw.get('weightRoasted'))
         self.weightLossPct = (1.0 - self.weightRoasted / self.weightGreen)*100.0
+        self.roastDate = datetime.fromtimestamp(self.raw.get('dateTime') / 1000)
+        # enjoy between these two date
+        self.roastBestDate = [self.roastDate + timedelta(days=config.bestDaysStart), self.roastDate + timedelta(days=config.bestDaysEnd)]
         self.roastTimeTotal = float(self.raw.get('totalRoastTime'))
         rate = int(self.raw.get('sampleRate'))
         start_at = int(self.raw.get('roastStartIndex'))
         self.roastTimeDrying = (int(self.raw.get('indexYellowingStart')) - start_at) / rate  # number of samples since start divided by samples/second
         self.roastTimeDevelopment = self.roastTimeTotal - (int(self.raw.get('indexFirstCrackStart')) / rate)  # from first crack to end of roast
         self.roastDVPct = self.roastTimeDevelopment / self.roastTimeTotal * 100.0
-        # if 'decaf' in self.name.casefold():
-        #     self.isDecaf = True
-        # self.description = self.raw.get('description')
-        # self.country = self.raw.get('country')
-        # if not self.country:
-        #     self.country = 'Blend/Unknown'
-        # self.region = self.raw.get('region')
-        # self.farm = self.raw.get('farm')
-        # self.process = self.raw.get('process')
-        # self.isOrganic = self.raw.get('isOrganic')
+        roast_degree = self.raw.get('roastDegree')
+        if roast_degree:
+            self.roastLevel = config.roastLevels[int(roast_degree)]
+
+        # info inherited from the Bean
+        self.descriptionBean = self.bean.description
+        self.isDecaf = self.bean.isDecaf
+        self.isOrganic = self.bean.isOrganic
+        self.country = self.bean.country
+        self.region = self.bean.region
+        self.process = self.bean.process
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.name}, Origin:{self.beanId})"

@@ -9,7 +9,6 @@ from typing import List, Dict
 import ballistics
 from .utils import Stopwatch
 from .config import config
-# from .roasts import Roast, find_roast_by
 
 
 @dataclass
@@ -48,7 +47,6 @@ class Bean:
         # TODO: check to make sure this always resolved to true or false
         self.isOrganic = self.raw.get('isOrganic')
         self.roasts = ballistics.find_roast_by(self.beanId, 'beanid').get(self.beanId)
-        # self.load_roasts()  # don't do this, it leads to infinite recursion
 
     def get_roasts(self) -> List:
         """

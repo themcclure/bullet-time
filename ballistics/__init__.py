@@ -9,4 +9,4 @@ from .utils import get_from_env, Stopwatch
 from .config import config
 
 from .beans import find_bean_by, Bean
-from .roasts import find_roast_by, Roast
+from .roasts import find_roast_by, Roast, RoastCollection
