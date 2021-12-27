@@ -10,15 +10,11 @@ import ballistics
 from pprint import pprint
 
 
-"""
-Config
-This whole section should be a config module/file
-"""
+##########
+# Config
 # which roast to load
 selected_roast = '322'
-"""
-/Config
-"""
+##########
 
 
 def load_first_matching(partial: str) -> Union[ballistics.Roast, None]:
@@ -35,9 +31,6 @@ def load_first_matching(partial: str) -> Union[ballistics.Roast, None]:
 
 
 if __name__ == '__main__':
-    # ballistics.config.init_env()
-    # roastd = ballistics.find_roast_by(selected_roast)
-    # roast = ballistics.Roast(roastd.get(list(roastd.keys())[0])[0])
     roast = load_first_matching(selected_roast)
     roastj = roast.raw
     # this removes the loooooong arrays before printing them out, to aid in human readability

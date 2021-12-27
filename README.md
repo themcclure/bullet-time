@@ -2,7 +2,8 @@
 
 I wanted to process all the data that the RoasTime and Roast.World collects about all 
 the coffee roasting.
-I wrote this module to automatically generate
+I wrote this module to automatically do some calculations, generate labaels and upload 
+it all to my Headless CMS that feeds my website. 
 
 ## Applications
 Here are the applications in use in this repo that make use of the proto-module "ballistics".
