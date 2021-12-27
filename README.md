@@ -21,6 +21,29 @@ TODO:
 ## Ballistics Module
 This is where I have wrapped up the module with some utility programs.
 
+### Classes
+#### Bean
+
+_Attributes_:
+- list TBC
+- raw: the raw JSON file loaded from RoasTime
+- roasts: a list of roastIds that use this bean
+
+#### Roast
+
+_Attributes:_
+- list TBC
+- raw: the raw JSON file loaded from RoasTime
+
+_Functions:_
+- find_roast_by: find roasts by partial match on name or beanId if 'beanid' flag is set
+
+#### RoastCollection
+A collection of Roast objects
+
+_Attributes:_
+- roasts: a list of Roast objects
+
 ## TODO:
 
 #### Ballistics Module:
