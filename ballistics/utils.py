@@ -31,8 +31,11 @@ def merge_markdown(original: Path, annotation: Path) -> str:
         # merge frontmatter:
         meta.update(annotation_file.metadata)
 
-        # merge content (assuming top row is header, keep it, then insert on row 2 all the override content, then the rest of the original content
+        # merge content (assuming top row is header, keep it, then insert on row 2 all the override content,
+        # surrounded by blank lines - then the rest of the original content
+        content[1:1] = '\n'
         content[1:1] = annotation_file.content.split('\n')
+        content[1:1] = '\n'
 
     # combine into one big happy markdown file
     results = '---\n'
