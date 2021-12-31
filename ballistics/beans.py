@@ -4,11 +4,44 @@ Loading bean data from the Bullet data, and outputting it in various formats
 """
 from dataclasses import dataclass
 import json
+import os
+from slugify import slugify
+from pathlib import Path
 from typing import List, Dict
 
 import ballistics
 from .utils import Stopwatch
 from .config import config
+
+
+@dataclass
+class BeanCollection:
+    """
+    Collection of Beans
+    """
+    def __post_init__(self):
+        self.beans = list()
+        if not config.initialized:
+            config.init_env()
+        for file in config.beans_dir.glob('*'):
+            config.logger.debug(f"Collection loading bean: {file.stem}")
+            bean = Bean(file.stem)
+            if bean:
+                self.beans.append(bean)
+
+    def do_all_markdown(self):
+        for bean in self.beans:
+            bean.to_markdown()
+
+    def __iter__(self):
+        # FIXME: this isn't working for some reason
+        return iter(self.beans.__iter__())
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(Collection of {len(self.beans)} beans)"
+
+    def __str__(self):
+        return f"{self.__class__.__name__}(Collection of {len(self.beans)} beans)"
 
 
 @dataclass
@@ -25,6 +58,7 @@ class Bean:
     process: str = ''
     isOrganic: bool = False
     isDecaf: bool = False
+    isForEspresso: bool = False
     raw: json = None
     roasts: list = None
 
@@ -46,7 +80,50 @@ class Bean:
         self.process = self.raw.get('process')
         # TODO: check to make sure this always resolved to true or false
         self.isOrganic = self.raw.get('isOrganic')
-        self.roasts = ballistics.find_roast_by(self.beanId, 'beanid').get(self.beanId)
+        self.isForEspresso = self.raw.get('espresso')
+        self.roasts = ballistics.find_roast_by(self.beanId, 'beanid').get(self.beanId) or list()
+
+    def to_markdown(self) -> Path:
+        """
+        Output the Roast as a markdown file.
+        :return: Path of the output file
+        """
+        output_beans_dir = config.outputDir / "beans"
+        # output_roast_dir = config.outputDir / "roasts"
+        if not output_beans_dir.exists():
+            output_beans_dir.mkdir(parents=True)
+        slug = slugify(self.name)
+        output_file = output_beans_dir / f"{self.name}.md"
+        with open(output_file, 'w') as beanf:
+            # write out the frontmatter
+            beanf.write("---\n")
+            beanf.write(f"title: {self.name}\n")
+            beanf.write(f"origin: {self.country}\n")
+            beanf.write(f"slug: {slug}\n")
+            beanf.write("type: bean\n")
+            beanf.write("path: /beans\n")
+            beanf.write("tags:\n")
+            beanf.write(" - roastedby\n")
+            beanf.write(" - bean\n")
+            if self.isDecaf:
+                beanf.write(" - decaf\n")
+            if self.isOrganic:
+                beanf.write(" - organic\n")
+            if self.isForEspresso:
+                beanf.write(" - espresso\n")
+            beanf.write("---\n")
+            # write out the semi-structured
+            # TODO: add in details
+            beanf.write(f"# {self.name}:\n")
+            beanf.write(f"### Importer's Description:\n{self.description}\n")
+            beanf.write("\n")
+            roasts = self.get_roasts()
+            if roasts:
+                beanf.write("### Roasts made with this bean:\n")
+            for roast in roasts:
+                beanf.write(f"- [[{roast.batch}]]: {roast.weightGreen}g on {roast.roastDate.strftime('%a %D')}\n")
+        beanf.close()
+        return output_file
 
     def get_roasts(self) -> List:
         """

@@ -5,19 +5,33 @@ the coffee roasting.
 I wrote this module to automatically do some calculations, generate labaels and upload 
 it all to my Headless CMS that feeds my website. 
 
+## Configuration
+Create `.env` file for all the local configuration settings.
+
+See `.env.example` for details on what options are available.
+
+_TODO_:
+- initial commit
+- Consider iterating on all environment variables beginning with 'BALL_' and auto
+processing those into the environment
+
 ## Applications
 Here are the applications in use in this repo that make use of the proto-module "ballistics".
 
+### Batch Process (`process_all.py`)
+This processes all the beans and roasts into an output directory 
+
+_TODO_:
+- initial commit
+- generate some kind of report on bean quantities/usage
+
 ### Load One (`load_one.py`)
 This loads one roast, for quick checking and debugging.
-Design to be in an interactive shell so that the loaded objects (and raw JSON) can 
-be explored interactively.
+Design to be run in an interactive shell so that the loaded objects (and raw JSON) 
+can be explored interactively.
 
-TODO:
-- take args for which roast (by number, name?)
-- take option to load a bean
-
-### B
+_TODO_:
+- take runtime args for which roast (by number, name?)
 
 ## Ballistics Module
 This is where I have wrapped up the module with some utility programs.

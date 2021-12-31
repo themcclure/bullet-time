@@ -3,9 +3,44 @@ Utility functions and classes that serve the PlexPlay module
 """
 import os
 import datetime
+import frontmatter
 
 from typing import List, Union
 from pathlib import Path
+
+
+def merge_markdown(original: Path, annotation: Path) -> str:
+    """
+    Take two markdown files and annotate the original.
+    Annotation goes like this:
+        - merge the original with the frontmatter from the annotation version
+        - insert the main body of the annotation version in between the heading (first line) of the original and
+          the rest of the content
+    Return a multi-line string ready to be saved to file
+    (Should the save to file be part of this function?)
+    :param original: Path to the "original" markdown file
+    :param annotation Path to the "annotation" markdown file - this needs to be a Path but the file is ignored if it
+        doesn't exist
+    :return: merged string
+    """
+    orig_file = frontmatter.load(original)
+    meta = orig_file.metadata
+    content = orig_file.content.split('\n')
+    if annotation.exists():
+        annotation_file = frontmatter.load(annotation)
+        # merge frontmatter:
+        meta.update(annotation_file.metadata)
+
+        # merge content (assuming top row is header, keep it, then insert on row 2 all the override content, then the rest of the original content
+        content[1:1] = annotation_file.content.split('\n')
+
+    # combine into one big happy markdown file
+    results = '---\n'
+    for item in meta.items():
+        results += f"{item[0]}: {item[1]}\n"
+    results += '---\n'
+    results += '\n'.join(content)
+    return results
 
 
 def get_from_env(name: str) -> Union[int, str, List, None]:

@@ -23,7 +23,6 @@ class BallisticsConfig:
     log_file: str = ''
     log_format: str = ''
     logger: logging.Logger = None
-    # roastLevels: dict = None
     roastLevels = {
         0: 'Very Light (Cinnamon)',
         1: 'Light (City)',
@@ -36,6 +35,9 @@ class BallisticsConfig:
     bestDaysStart: int = 3
     bestDaysEnd: int = 21 + bestDaysStart
     baseUrl: str = 'https://roastedby.themcclure.com/roasts/'
+    outputDir: Path = Path('.')
+    publishDir: Path = Path('.')
+    annotationsDir: Path = None
 
     def init_env(self, name: str = None, force: bool = False) -> None:
         """
@@ -59,11 +61,14 @@ class BallisticsConfig:
         self.logger = self.init_logging()
 
         # roaster specific section
-        self.src_dir = Path(f"~{os.getenv('BALL_USER', '')}").expanduser() / os.getenv('BALL_HOME', '')
+        self.src_dir = Path(f"~{os.getenv('BALL_USER', '')}").expanduser() / os.getenv('BALL_HOME_DIR', '')
         self.roasts_dir = self.src_dir / 'roasts'
         self.beans_dir = self.src_dir / 'beans'
 
-        # website and label section
+        # output, website, and label section
+        self.outputDir = (Path(f"~{os.getenv('BULLET_USER', '')}").expanduser() / os.getenv('BALL_OUTPUT_DIR', '')) or self.outputDir
+        self.annotationsDir = (Path(f"~{os.getenv('BULLET_USER', '')}").expanduser() / os.getenv('BALL_ANNOTATIONS_DIR', '')) or self.annotationsDir
+        self.publishDir = (Path(f"~{os.getenv('BULLET_USER', '')}").expanduser() / os.getenv('BALL_PUBLISH_DIR', '')) or self.publishDir
         self.baseUrl = os.getenv('BALL_BASE_URL', '') or self.baseUrl
         self.bestDaysStart = os.getenv('BALL_MIN_DAYS', '') or self.bestDaysStart
         self.bestDaysEnd = (os.getenv('BALL_MIN_DAYS', '') or self.bestDaysEnd) + self.bestDaysStart
