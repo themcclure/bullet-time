@@ -34,7 +34,7 @@ class BallisticsConfig:
     }
     bestDaysStart: int = 3
     bestDaysEnd: int = 21 + bestDaysStart
-    baseUrl: str = 'https://roastedby.themcclure.com/roasts/'
+    baseUrl: str = 'https://roastedby.themcclure.com/'
     outputDir: Path = Path('.')
     publishDir: Path = Path('.')
     annotationsDir: Path = None

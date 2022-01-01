@@ -69,6 +69,10 @@ class Bean:
             self.raw = json.load(json_file)
         self.beanId = self.raw.get('uid')
         self.name = self.raw.get('name')
+        self.slug = slugify(self.name)
+        # local and remote URLs
+        self.urlSite = f"/beans/{self.slug}"
+        self.url = config.baseUrl + self.urlSite
         if 'decaf' in self.name.casefold():
             self.isDecaf = True
         self.description = self.raw.get('description')
@@ -92,16 +96,21 @@ class Bean:
         # output_roast_dir = config.outputDir / "roasts"
         if not output_beans_dir.exists():
             output_beans_dir.mkdir(parents=True)
-        slug = slugify(self.name)
-        output_file = output_beans_dir / f"{self.name}.md"
+        output_file = output_beans_dir / f"{self.name.strip()}.md"
         with open(output_file, 'w') as beanf:
+            roasts = self.get_roasts()
             # write out the frontmatter
             beanf.write("---\n")
             beanf.write(f"title: {self.name}\n")
             beanf.write(f"origin: {self.country}\n")
-            beanf.write(f"slug: {slug}\n")
+            beanf.write(f"slug: {self.slug}\n")
             beanf.write("type: bean\n")
-            beanf.write("path: /beans\n")
+            beanf.write(f"path: {self.urlSite}\n")
+            beanf.write(f"rwUrl: https://roast.world/beans/{self.beanId}\n")
+            if roasts:
+                beanf.write(f"lastRoasted: {max(r.roastDate for r in roasts).isoformat(' ', 'minutes')}\n")
+            else:
+                beanf.write(f"lastRoasted: \n")
             beanf.write("tags:\n")
             beanf.write(" - roastedby\n")
             beanf.write(" - bean\n")
@@ -117,11 +126,10 @@ class Bean:
             beanf.write(f"# {self.name}:\n")
             beanf.write(f"### Importer's Description:\n{self.description}\n")
             beanf.write("\n")
-            roasts = self.get_roasts()
             if roasts:
-                beanf.write("### Roasts made with this bean:\n")
-            for roast in roasts:
-                beanf.write(f"- [[{roast.batch}]]: {roast.weightGreen}g on {roast.roastDate.strftime('%a %D')}\n")
+                beanf.write(f"### Roasts made with this bean {round(sum([item.weightGreen for item in roasts])/1000, 1)}kg:\n")
+                for roast in roasts:
+                    beanf.write(f"- [{roast.batch}][{roast.urlSite}]: {roast.weightGreen}g on {roast.roastDate.strftime('%a %D')}\n")
         beanf.close()
         return output_file
 

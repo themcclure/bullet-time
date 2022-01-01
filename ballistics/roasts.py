@@ -56,6 +56,7 @@ class Roast:
     description: str = ''
     roastLevel: str = ''
     url: str = ''
+    urlSite: str = ''
     descriptionBean: str = ''
     country: str = ''
     region: str = ''
@@ -96,7 +97,10 @@ class Roast:
 
         # split names into batch number and name
         self.batch, self.name = self.raw.get('roastName').split(' - ')
-        self.url = config.baseUrl + self.batch
+
+        # local and remote URLs
+        self.urlSite = f"/roasts/{self.batch}"
+        self.url = config.baseUrl + self.urlSite
 
         self.bean = Bean(self.beanId)
         self.weightGreen = float(self.raw.get('weightGreen'))
