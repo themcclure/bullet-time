@@ -1,12 +1,15 @@
 """
 Module section for setting, holding and providing the configuration items for this module.
 """
+import dataclasses
 import logging
 import os
 from dataclasses import dataclass
 # from typing import List
 from dotenv import load_dotenv
 from pathlib import Path
+from PIL import Image, ImageFont, ImageDraw
+from qrcode import QRCode
 
 from .utils import get_from_env
 
@@ -38,6 +41,7 @@ class BallisticsConfig:
     outputDir: Path = Path('.')
     publishDir: Path = Path('.')
     annotationsDir: Path = None
+    labels: dict = None
 
     def init_env(self, name: str = None, force: bool = False) -> None:
         """
@@ -72,6 +76,18 @@ class BallisticsConfig:
         self.baseUrl = os.getenv('BALL_BASE_URL', '') or self.baseUrl
         self.bestDaysStart = os.getenv('BALL_MIN_DAYS', '') or self.bestDaysStart
         self.bestDaysEnd = (os.getenv('BALL_MIN_DAYS', '') or self.bestDaysEnd) + self.bestDaysStart
+        self.labels = dict()
+        self.labels['large'] = {
+            'width': 406,  # 2", @ 203 DPI
+            'height': 609,  # 3", @ 203 DPI
+            'font_batch': ImageFont.truetype('Menlo', 48),
+            'font_title': ImageFont.truetype('Menlo', 36),
+            'font_origin': ImageFont.truetype('Arial', 38),
+            'font_small': ImageFont.truetype('Arial', 24),
+            'line_length': 18,
+            'line_count': 2,
+
+        }
 
         # general utility section
         if name:

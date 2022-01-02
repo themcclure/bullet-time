@@ -4,9 +4,13 @@ Loading roast data from the Bullet data, and outputting it in various formats
 """
 from dataclasses import dataclass
 import json
+import textwrap
+from pathlib import Path
 from pprint import pprint
 from typing import List, Dict
 from datetime import datetime, timedelta
+from PIL import Image, ImageFont, ImageDraw
+from qrcode import QRCode
 
 from .errors import ForeignRoastException
 from .utils import Stopwatch
@@ -126,6 +130,119 @@ class Roast:
         self.country = self.bean.country
         self.region = self.bean.region
         self.process = self.bean.process
+
+    def to_markdown(self) -> Path:
+        """
+        Output the Roast as a markdown file.
+        :return: Path of the output file
+        """
+        # output_beans_dir = config.outputDir / "beans"
+        output_roast_dir = config.outputDir / "roasts"
+        if not output_roast_dir.exists():
+            output_roast_dir.mkdir(parents=True)
+        output_file = output_roast_dir / f"{self.batch}.md"
+        with open(output_file, 'w') as roastf:
+            # write out the frontmatter
+            roastf.write("---\n")
+            roastf.write(f"title: {self.name}\n")
+            roastf.write(f"batch: {self.batch}\n")
+            roastf.write(f"origin: {self.country}\n")
+            roastf.write(f"roastedDate: {self.roastDate}\n")
+            roastf.write(f"bestDate: {self.roastBestDate[1]}\n")
+            roastf.write("type: roast\n")
+            roastf.write(f"path: {self.urlSite}\n")
+            roastf.write(f"beanPath: {self.bean.urlSite}\n")
+            roastf.write(f"beanName: {self.bean.name}\n")
+            roastf.write(f"region: {self.region}\n")
+            roastf.write(f"rwUrl: https://roast.world/roasts/{self.beanId}\n")
+            label = f"images/{self.batch}"
+            if (config.outputDir / f"roasts/{label}.png").exists():
+                # shit gets dicy if this doesn't exist
+                roastf.write(f"labelPic: {label}.png\n")
+            if (config.outputDir / f"roasts/{label}-profile.png").exists():
+                # queries fail if NO roasts have a profile graph
+                roastf.write(f"profilePic: {label}-profile.png\n")
+            profile = f"images/{self.batch}-profile.png"
+            # TODO: if there's a profile Pic, add it here
+            roastf.write("tags:\n")
+            roastf.write(" - roastedby\n")
+            roastf.write(" - roast\n")
+            if self.isDecaf:
+                roastf.write(" - decaf\n")
+            if self.isOrganic:
+                roastf.write(" - organic\n")
+            if self.bean.isForEspresso:
+                roastf.write(" - espresso\n")
+            roastf.write("---\n")
+            # write out the semi-structured content
+            # TODO: add in details
+            roastf.write("### Roast details\n\n")
+            if self.roastLevel:
+                roastf.write(f"*Roast level:* {self.roastLevel}\n\n")
+            roastf.write(f"*Weight in:* {self.weightGreen}g\n\n")
+            roastf.write(f"*Weight out:* {self.weightRoasted}g\n\n")
+            roastf.write(f"*Roast time:* {(self.roastTimeTotal / 60):.1f} minutes\n\n")
+            roastf.write(f"*Development:* {self.roastDVPct:.1f}%\n\n")
+            roastf.write("\n")
+        roastf.close()
+        return output_file
+
+    def generate_labels(self):
+        # go through each label and build the label
+        # TODO: make this iterable, with some enhanced labl layout props?
+        # start with the large label
+        label = config.labels['large']
+        large_label_width = label['width']
+        large_label_height = label['height']
+        label_size = (large_label_width, large_label_height)  # 2" x 3"
+        img = Image.new('RGB', size=(large_label_width, large_label_height), color='white')
+
+        # generate QR code
+        qr = QRCode(box_size=10, border=1, version=1)
+        qr.add_data(self.url)
+        qrimg = qr.make_image()
+        img.paste(qrimg, (25, 130))
+
+        # if it's decaf, add a decal to the QR code
+        if self.isDecaf:
+            decafdecal = Image.new("RGB", (115, 50), "white")
+            decafdecalimg = ImageDraw.Draw(decafdecal)
+            decafdecalimg.text((4, 6), "DECAF", font=label['font_title'], fill="#FF7F50")
+            decafdecalimg.line(((0, 2), (120, 2)), "#FF7F50", 3)
+            decafdecalimg.line(((0, 48), (120, 48)), "#FF7F50", 3)
+            img.paste(decafdecal, (140, 260))
+
+        # add text to the label
+        canvas = ImageDraw.Draw(img)
+        # batch number, rotated 90 degrees
+        bimg = Image.new("L", (100, 100), 255)
+        bnumimg = ImageDraw.Draw(bimg)
+        bnumimg.text((0, 0), str(self.batch), font=label['font_batch'], fill=0)
+        bnumimg.line(((0, 52), (85, 52)), 0, 4)
+        bimg = bimg.rotate(90, expand=False, fillcolor=0)
+        img.paste(bimg, (8, 10))
+        # roast name
+        wrapped_rname = '\n'.join(textwrap.wrap(self.name, label['line_length'])[:label['line_count']])
+        canvas.text((70, 18), wrapped_rname, font=label['font_title'], fill=(0, 0, 0))
+        # origin
+        # FIXME: shrink font size if the text is longer than the space? can we know how long the text would be?
+        canvas.text((35, large_label_height - 140), f"Origin: {self.country}", font=label['font_origin'], fill=(0, 0, 0))
+        # dates
+        canvas.text((110, large_label_height - 72), f"Roasted on: {self.roastDate.strftime('%a %D')}", font=label['font_small'], fill=(0, 0, 0))
+        canvas.text((110, large_label_height - 40), f"Best: {self.roastBestDate[0].strftime('%D')} to {self.roastBestDate[1].strftime('%D')}",
+                    font=label['font_small'], fill=(0, 0, 0))
+
+        # save the image label file, in an iCloud location, so that I can print them as needed
+        img_file = f"{self.batch}.png"
+        img_loc = config.outputDir / "roasts/images"
+        if not img_loc.exists():
+            img_loc.mkdir(parents=True)
+        img.save(img_loc / img_file)
+        # TODO: small label
+        return
+
+    def generate_profile_graph(self):
+        pass
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.name}, Origin:{self.beanId})"

@@ -89,7 +89,7 @@ class Bean:
 
     def to_markdown(self) -> Path:
         """
-        Output the Roast as a markdown file.
+        Output the Bean as a markdown file.
         :return: Path of the output file
         """
         output_beans_dir = config.outputDir / "beans"
@@ -127,9 +127,9 @@ class Bean:
             beanf.write(f"### Importer's Description:\n{self.description}\n")
             beanf.write("\n")
             if roasts:
-                beanf.write(f"### Roasts made with this bean {round(sum([item.weightGreen for item in roasts])/1000, 1)}kg:\n")
+                beanf.write(f"### Roasts made with this bean ({round(sum([item.weightGreen for item in roasts])/1000, 1)}kg):\n")
                 for roast in roasts:
-                    beanf.write(f"- [{roast.batch}][{roast.urlSite}]: {roast.weightGreen}g on {roast.roastDate.strftime('%a %D')}\n")
+                    beanf.write(f"- [{roast.batch}]({roast.urlSite}): {roast.weightGreen}g on {roast.roastDate.strftime('%a %D')}\n")
         beanf.close()
         return output_file
 
