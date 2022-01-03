@@ -3,10 +3,64 @@ Utility functions and classes that serve the PlexPlay module
 """
 import os
 import datetime
+import textwrap
+
 import frontmatter
 
 from typing import List, Union
 from pathlib import Path
+
+from PIL import Image, ImageFont, ImageDraw
+from qrcode import QRCode
+
+
+def generate_large_label(label_conf: dict, batch: str, name: str, url: str, is_decaf: bool,
+                         roast_date: datetime.datetime, start_date: datetime.datetime, end_date: datetime.datetime,
+                         country: str = "Blend/Unknown") -> Image:
+    # label = config.labels['large']
+    large_label_width = label_conf['width']
+    large_label_height = label_conf['height']
+    label_size = (large_label_width, large_label_height)  # 2" x 3"
+    img = Image.new('RGB', size=(large_label_width, large_label_height), color='white')
+
+    # generate QR code
+    qr = QRCode(box_size=9, border=1, version=1)
+    qr.add_data(url)
+    qrimg = qr.make_image()
+    img.paste(qrimg, (25, 130))
+
+    # if it's decaf, add a decal to the QR code
+    if is_decaf:
+        decafdecal = Image.new("RGB", (115, 50), "white")
+        decafdecalimg = ImageDraw.Draw(decafdecal)
+        decafdecalimg.text((4, 6), "DECAF", font=label_conf['font_title'], fill="#FF7F50")
+        decafdecalimg.line(((0, 2), (120, 2)), "#FF7F50", 3)
+        decafdecalimg.line(((0, 48), (120, 48)), "#FF7F50", 3)
+        img.paste(decafdecal, (140, 260))
+
+    # add text to the label
+    canvas = ImageDraw.Draw(img)
+    # TODO: reduce font size by 3/len(batch) so that it will fit arbitrary length batch numbers
+    # batch number, rotated 90 degrees
+    bimg = Image.new("L", (100, 100), 255)
+    bnumimg = ImageDraw.Draw(bimg)
+    bnumimg.text((0, 0), batch, font=label_conf['font_batch'], fill=0)
+    bnumimg.line(((0, 52), (85, 52)), 0, 4)
+    bimg = bimg.rotate(90, expand=False, fillcolor=0)
+    img.paste(bimg, (8, 10))
+    # roast name
+    wrapped_rname = '\n'.join(textwrap.wrap(name, label_conf['line_length'])[:label_conf['line_count']])
+    canvas.text((70, 18), wrapped_rname, font=label_conf['font_title'], fill=(0, 0, 0))
+    # origin
+    # FIXME: shrink font size if the text is longer than the space? can we know how long the text would be?
+    canvas.text((35, large_label_height - 140), f"Origin: {country}", font=label_conf['font_origin'], fill=(0, 0, 0))
+    # dates
+    canvas.text((110, large_label_height - 72), f"Roasted on: {roast_date.strftime('%a %D')}",
+                font=label_conf['font_small'], fill=(0, 0, 0))
+    canvas.text((110, large_label_height - 40),
+                f"Best: {start_date.strftime('%D')} to {end_date.strftime('%D')}",
+                font=label_conf['font_small'], fill=(0, 0, 0))
+    return img
 
 
 def merge_markdown(original: Path, annotation: Path) -> str:

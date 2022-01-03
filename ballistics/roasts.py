@@ -154,7 +154,7 @@ class Roast:
             roastf.write(f"beanPath: {self.bean.urlSite}\n")
             roastf.write(f"beanName: {self.bean.name}\n")
             roastf.write(f"region: {self.region}\n")
-            roastf.write(f"rwUrl: https://roast.world/roasts/{self.beanId}\n")
+            roastf.write(f"rwUrl: https://roast.world/my/roasts/{self.roastId}\n")
             label = f"images/{self.batch}"
             if (config.outputDir / f"roasts/{label}.png").exists():
                 # shit gets dicy if this doesn't exist
@@ -163,7 +163,6 @@ class Roast:
                 # queries fail if NO roasts have a profile graph
                 roastf.write(f"profilePic: {label}-profile.png\n")
             profile = f"images/{self.batch}-profile.png"
-            # TODO: if there's a profile Pic, add it here
             roastf.write("tags:\n")
             roastf.write(" - roastedby\n")
             roastf.write(" - roast\n")
@@ -189,7 +188,7 @@ class Roast:
 
     def generate_labels(self):
         # go through each label and build the label
-        # TODO: make this iterable, with some enhanced labl layout props?
+        # TODO: make this iterable, with some enhanced label layout props?
         # start with the large label
         label = config.labels['large']
         large_label_width = label['width']
