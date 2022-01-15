@@ -13,7 +13,7 @@ from PIL import Image, ImageFont, ImageDraw
 from qrcode import QRCode
 
 from .errors import ForeignRoastException
-from .utils import Stopwatch
+from .utils import generate_large_label
 from .config import config
 from .beans import Bean, find_bean_by
 
@@ -186,50 +186,63 @@ class Roast:
         roastf.close()
         return output_file
 
-    def generate_labels(self):
-        # go through each label and build the label
+    def generate_labels(self) -> None:
+        """
+        Go through each label and generate it for this roast.
+        :return: None
+        """
         # TODO: make this iterable, with some enhanced label layout props?
         # start with the large label
         label = config.labels['large']
-        large_label_width = label['width']
-        large_label_height = label['height']
-        label_size = (large_label_width, large_label_height)  # 2" x 3"
-        img = Image.new('RGB', size=(large_label_width, large_label_height), color='white')
 
-        # generate QR code
-        qr = QRCode(box_size=10, border=1, version=1)
-        qr.add_data(self.url)
-        qrimg = qr.make_image()
-        img.paste(qrimg, (25, 130))
+        ##########
+        # the old way
+        ##########
+        # large_label_width = label['width']
+        # large_label_height = label['height']
+        # label_size = (large_label_width, large_label_height)  # 2" x 3"
+        # img = Image.new('RGB', size=(large_label_width, large_label_height), color='white')
+        #
+        # # generate QR code
+        # qr = QRCode(box_size=10, border=1, version=1)
+        # qr.add_data(self.url)
+        # qrimg = qr.make_image()
+        # img.paste(qrimg, (25, 130))
+        #
+        # # if it's decaf, add a decal to the QR code
+        # if self.isDecaf:
+        #     decafdecal = Image.new("RGB", (115, 50), "white")
+        #     decafdecalimg = ImageDraw.Draw(decafdecal)
+        #     decafdecalimg.text((4, 6), "DECAF", font=label['font_title'], fill="#FF7F50")
+        #     decafdecalimg.line(((0, 2), (120, 2)), "#FF7F50", 3)
+        #     decafdecalimg.line(((0, 48), (120, 48)), "#FF7F50", 3)
+        #     img.paste(decafdecal, (140, 260))
+        #
+        # # add text to the label
+        # canvas = ImageDraw.Draw(img)
+        # # batch number, rotated 90 degrees
+        # bimg = Image.new("L", (100, 100), 255)
+        # bnumimg = ImageDraw.Draw(bimg)
+        # bnumimg.text((0, 0), str(self.batch), font=label['font_batch'], fill=0)
+        # bnumimg.line(((0, 52), (85, 52)), 0, 4)
+        # bimg = bimg.rotate(90, expand=False, fillcolor=0)
+        # img.paste(bimg, (8, 10))
+        # # roast name
+        # wrapped_rname = '\n'.join(textwrap.wrap(self.name, label['line_length'])[:label['line_count']])
+        # canvas.text((70, 18), wrapped_rname, font=label['font_title'], fill=(0, 0, 0))
+        # # origin
+        # # FIXME: shrink font size if the text is longer than the space? can we know how long the text would be?
+        # canvas.text((35, large_label_height - 140), f"Origin: {self.country}", font=label['font_origin'], fill=(0, 0, 0))
+        # # dates
+        # canvas.text((110, large_label_height - 72), f"Roasted on: {self.roastDate.strftime('%a %D')}", font=label['font_small'], fill=(0, 0, 0))
+        # canvas.text((110, large_label_height - 40), f"Best: {self.roastBestDate[0].strftime('%D')} to {self.roastBestDate[1].strftime('%D')}",
+        #             font=label['font_small'], fill=(0, 0, 0))
 
-        # if it's decaf, add a decal to the QR code
-        if self.isDecaf:
-            decafdecal = Image.new("RGB", (115, 50), "white")
-            decafdecalimg = ImageDraw.Draw(decafdecal)
-            decafdecalimg.text((4, 6), "DECAF", font=label['font_title'], fill="#FF7F50")
-            decafdecalimg.line(((0, 2), (120, 2)), "#FF7F50", 3)
-            decafdecalimg.line(((0, 48), (120, 48)), "#FF7F50", 3)
-            img.paste(decafdecal, (140, 260))
-
-        # add text to the label
-        canvas = ImageDraw.Draw(img)
-        # batch number, rotated 90 degrees
-        bimg = Image.new("L", (100, 100), 255)
-        bnumimg = ImageDraw.Draw(bimg)
-        bnumimg.text((0, 0), str(self.batch), font=label['font_batch'], fill=0)
-        bnumimg.line(((0, 52), (85, 52)), 0, 4)
-        bimg = bimg.rotate(90, expand=False, fillcolor=0)
-        img.paste(bimg, (8, 10))
-        # roast name
-        wrapped_rname = '\n'.join(textwrap.wrap(self.name, label['line_length'])[:label['line_count']])
-        canvas.text((70, 18), wrapped_rname, font=label['font_title'], fill=(0, 0, 0))
-        # origin
-        # FIXME: shrink font size if the text is longer than the space? can we know how long the text would be?
-        canvas.text((35, large_label_height - 140), f"Origin: {self.country}", font=label['font_origin'], fill=(0, 0, 0))
-        # dates
-        canvas.text((110, large_label_height - 72), f"Roasted on: {self.roastDate.strftime('%a %D')}", font=label['font_small'], fill=(0, 0, 0))
-        canvas.text((110, large_label_height - 40), f"Best: {self.roastBestDate[0].strftime('%D')} to {self.roastBestDate[1].strftime('%D')}",
-                    font=label['font_small'], fill=(0, 0, 0))
+        ##########
+        # the new way
+        ##########
+        img = generate_large_label(label, str(self.batch), self.name, self.url, self.isDecaf, self.roastDate,
+                                   self.roastBestDate[0], self.roastBestDate[1], self.country, config.logger)
 
         # save the image label file, in an iCloud location, so that I can print them as needed
         img_file = f"{self.batch}.png"

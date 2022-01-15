@@ -94,10 +94,14 @@ def publish_blends() -> int:
         slug = meta['slug']
         batch = f"{(meta['batch']):03d}"  # format the number as 3 digits with leading 0s
         name = meta['title']
+        origin = meta['origin']
         labelf = publish_img_dir / f"{slug}.png"
+        blend_date = meta.get('blendDate')
+        if not blend_date:
+            blend_date = datetime.datetime.today()
         url = f"{config.baseUrl}blends/{slug}"
-        img = generate_large_label(config.labels['large'], batch, name, url, False, datetime.datetime.today(),
-                                   datetime.datetime.today(), datetime.datetime.today()+datetime.timedelta(days=14))
+        img = generate_large_label(config.labels['large'], batch, name, url, False, blend_date, blend_date,
+                                   blend_date+datetime.timedelta(days=14), origin, config.logger)
         shutil.copy2(blendf, publish_dir)
         img.save(labelf)
         published_files += 1
@@ -147,7 +151,7 @@ if __name__ == '__main__':
     log.info(f"Ingested {len(rc.roasts)} roasts into {config.outputDir}")
     num_pub = publish_roasts()
     log.info(f"Published {num_pub} of {len(bc.beans)} roasts into {config.publishDir}")
-    # blends are a little bit different, as there is no RT/RW data to bring in
+    # blends are a little different, as there is no RT/RW data to bring in
     # so just publish it... but the publishing also needs to create the label
     num_pub = publish_blends()
     log.info(f"Published {num_pub} blends into {config.publishDir}")

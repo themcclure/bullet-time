@@ -11,7 +11,7 @@ Create `.env` file for all the local configuration settings.
 See `.env.example` for details on what options are available.
 
 _TODO_:
-- initial commit
+- Add roast level to the label
 - Consider iterating on all environment variables beginning with 'BALL_' and auto
 processing those into the environment
 

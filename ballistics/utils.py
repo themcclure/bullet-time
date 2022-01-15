@@ -1,35 +1,38 @@
 """
 Utility functions and classes that serve the PlexPlay module
 """
+import logging
 import os
 import datetime
 import textwrap
-
 import frontmatter
 
 from typing import List, Union
 from pathlib import Path
-
 from PIL import Image, ImageFont, ImageDraw
 from qrcode import QRCode
 
 
 def generate_large_label(label_conf: dict, batch: str, name: str, url: str, is_decaf: bool,
                          roast_date: datetime.datetime, start_date: datetime.datetime, end_date: datetime.datetime,
-                         country: str = "Blend/Unknown") -> Image:
+                         country: str, logger: logging.Logger) -> Image:
     # label = config.labels['large']
     large_label_width = label_conf['width']
     large_label_height = label_conf['height']
     label_size = (large_label_width, large_label_height)  # 2" x 3"
     img = Image.new('RGB', size=(large_label_width, large_label_height), color='white')
 
-    # generate QR code
-    qr = QRCode(box_size=9, border=1, version=1)
+    # GENERATE QR CODE
+    # regular URLs are 43 digits long and the QR code is the right size, blend URLs are 68 and the QR code is too big
+    box_size = 10
+    if len(url) > 60:
+        box_size = 9
+    qr = QRCode(box_size=box_size, border=1, version=1)
     qr.add_data(url)
     qrimg = qr.make_image()
     img.paste(qrimg, (25, 130))
 
-    # if it's decaf, add a decal to the QR code
+    # IF IT'S DECAF, add a decal to the QR code
     if is_decaf:
         decafdecal = Image.new("RGB", (115, 50), "white")
         decafdecalimg = ImageDraw.Draw(decafdecal)
@@ -38,29 +41,65 @@ def generate_large_label(label_conf: dict, batch: str, name: str, url: str, is_d
         decafdecalimg.line(((0, 48), (120, 48)), "#FF7F50", 3)
         img.paste(decafdecal, (140, 260))
 
-    # add text to the label
+    # ADD TEXT to the label
     canvas = ImageDraw.Draw(img)
-    # TODO: reduce font size by 3/len(batch) so that it will fit arbitrary length batch numbers
-    # batch number, rotated 90 degrees
+    # BATCH NUMBER, rotated 90 degrees
     bimg = Image.new("L", (100, 100), 255)
     bnumimg = ImageDraw.Draw(bimg)
-    bnumimg.text((0, 0), batch, font=label_conf['font_batch'], fill=0)
+    batch_font = scale_font(label_conf['font_batch'], batch, 2, 3, 1, logger)
+    bnumimg.text((0, 0), batch, font=batch_font, fill=0)
     bnumimg.line(((0, 52), (85, 52)), 0, 4)
     bimg = bimg.rotate(90, expand=False, fillcolor=0)
     img.paste(bimg, (8, 10))
-    # roast name
-    wrapped_rname = '\n'.join(textwrap.wrap(name, label_conf['line_length'])[:label_conf['line_count']])
-    canvas.text((70, 18), wrapped_rname, font=label_conf['font_title'], fill=(0, 0, 0))
-    # origin
-    # FIXME: shrink font size if the text is longer than the space? can we know how long the text would be?
-    canvas.text((35, large_label_height - 140), f"Origin: {country}", font=label_conf['font_origin'], fill=(0, 0, 0))
-    # dates
+    # ROAST NAME
+    # wrapped_rname = '\n'.join(textwrap.wrap(name, label_conf['line_length'])[:label_conf['line_count']])
+    wrapped_list = textwrap.wrap(name, label_conf['line_length'])
+    wrapped_rname = '\n'.join(wrapped_list)
+    logger.info(f"{batch}: Name is {len(wrapped_list)} lines long, with the longest being: {max(wrapped_list, key=len)}")
+    # wrapped_rname = '\n'.join(textwrap.wrap(name, round(len(name) / 2)))
+    # from math import ceil
+    # wrapped_rname = '\n'.join(textwrap.wrap(name, int(ceil(len(name) / 2))+1))
+    name_font = scale_font(label_conf['font_title'], name, 0, label_conf['line_length'], 2, logger)  # scale tet to fit into 2 lines
+    canvas.text((70, 18), wrapped_rname, font=name_font, fill=(0, 0, 0))
+    # ORIGIN
+    origin_str = f"Origin: {country}"
+    # More than 18 letters on the Origin: line can't fit, so scale the font size back to fit:
+    origin_font = scale_font(label_conf['font_origin'], origin_str, 16, 18, 1, logger)
+    canvas.text((35, large_label_height - 140), origin_str, font=origin_font, fill=(0, 0, 0))
+    # DATES
     canvas.text((110, large_label_height - 72), f"Roasted on: {roast_date.strftime('%a %D')}",
                 font=label_conf['font_small'], fill=(0, 0, 0))
     canvas.text((110, large_label_height - 40),
                 f"Best: {start_date.strftime('%D')} to {end_date.strftime('%D')}",
                 font=label_conf['font_small'], fill=(0, 0, 0))
     return img
+
+
+def scale_font(source_font: ImageFont, source_text: str, min_len: int, max_len: int, num_lines: int,
+               logger: logging.Logger) -> ImageFont:
+    adjusted_font = source_font
+    # if the text is supposted to be over multiple lines, split it up and assess the max and min length from the split
+    if num_lines > 1:
+        source_arr = textwrap.wrap(source_text, max_len)
+        # scale the font size back so that the text will fit into num_lines
+        # basically:
+        #   max_len is scaled down by (num_lines / actual_lines)
+        logger.info(f"scaling max_len to fit multiple lines, original max is {max_len}")
+        # max_len = max_len * (len(source_arr) / num_lines)
+        max_len = max_len * (num_lines / len(source_arr))
+        source_text = max(source_arr, key=len)
+        logger.info(f"scaling max_len to fit multiple lines, down to {max_len} for longest line: {source_text}")
+    # if the source text is longer than max_len, scale it down
+    if len(source_text) > max_len:
+        size = int(round(source_font.size * max_len / len(source_text)))
+        adjusted_font = ImageFont.truetype(source_font.font.family, size)
+        logger.info(f"scaling origin str down to size {adjusted_font.size}")
+    # if the source text is shorter than min_len, scale it up
+    if len(source_text) < min_len:
+        size = int(round(source_font.size * min_len / len(source_text)))
+        adjusted_font = ImageFont.truetype(source_font.font.family, size)
+        logger.info(f"scaling origin str up to size {adjusted_font.size}")
+    return adjusted_font
 
 
 def merge_markdown(original: Path, annotation: Path) -> str:
